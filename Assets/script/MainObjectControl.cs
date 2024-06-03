@@ -11,24 +11,31 @@ public class MainObjectControl : MonoBehaviour
     [SerializeField]
     float targetSpawnRadius, ressourceSpawnRadius;
 
+    [HideInInspector]
+    public bool actif;
+
     float timerTarget;
     float timerRessource;
 
     private void Update()
     {
+        if (!actif) return;
+
         timerTarget += Time.deltaTime;
         timerRessource += Time.deltaTime;
+
+        float scaleModif = transform.localScale.x;
 
         if (timerRessource > ressourceSpawnRate)
         {
             timerRessource = 0;
-            InstantiateElement(ressources, ressourceSpawnRadius);
+            InstantiateElement(ressources, ressourceSpawnRadius * scaleModif);
         }
 
         if (timerTarget > targetSpawnRate)
         {
             timerTarget = 0;
-            InstantiateElement(target, targetSpawnRadius);
+            InstantiateElement(target, targetSpawnRadius * scaleModif);
         }
     }
 
@@ -44,9 +51,9 @@ public class MainObjectControl : MonoBehaviour
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, ressourceSpawnRadius);
+        Gizmos.DrawWireSphere(transform.position, transform.localScale.x * ressourceSpawnRadius);
 
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, targetSpawnRadius);
+        Gizmos.DrawWireSphere(transform.position, transform.localScale.x * targetSpawnRadius);
     }
 }

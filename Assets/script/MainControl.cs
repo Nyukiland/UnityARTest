@@ -16,13 +16,16 @@ public class MainControl : MonoBehaviour
     [SerializeField]
     int baseAmmo;
 
+    [SerializeField]
+    int maxLife;
+
     [Header("Canvas related")]
 
     [SerializeField]
     GameObject playMenu;
 
 	[SerializeField]
-	TextMeshProUGUI textScore, textAmmo, textChrono;
+	TextMeshProUGUI textScore, textAmmo, textChrono, textLife;
 
     [Header("Set up related")]
 
@@ -39,12 +42,14 @@ public class MainControl : MonoBehaviour
     //private variable
 
     bool objectPlaced;
+    GameObject placedObj;
 
     bool endDoOnce;
     float timer;
 
     int score;
     int ammo;
+    int life;
 
     private void Start()
     {
@@ -60,21 +65,19 @@ public class MainControl : MonoBehaviour
         UpdateText();
     }
 
-    void CheckEnd()
+    void UpdateText()
     {
-        if (!objectPlaced) return;
+        textChrono.text = (Mathf.Round(timer * 10) / 10).ToString();
 
-        if (timer <= 0 && !endDoOnce)
-        {
-            endDoOnce = true;
-            endEvent?.Invoke();
-        }
-        else if (timer > maxTimer) timer -= Time.deltaTime;
+        textScore.text = "Score: " + score;
+        textAmmo.text = "Ammo: " + ammo;
+        textLife.text = "Life: " + life;
     }
 
+    #region ObjectPlacement
     void PlaceObject()
     {
-        if (objectPlaced) return;
+        if (placedObj == null) return;
 
         List<ARRaycastHit> hit = new();
 
@@ -82,15 +85,32 @@ public class MainControl : MonoBehaviour
         {
             if (raycastAR.Raycast(Input.mousePosition, hit, TrackableType.PlaneWithinPolygon))
             {
-                Instantiate(prefabToSpawn, hit[0].pose.position, Quaternion.identity);
-                objectPlaced = true;
+                placedObj = Instantiate(prefabToSpawn, hit[0].pose.position, Quaternion.identity);
             }
         }
-    }  
-    
+    }
+
+    public void ValidatePlacement()
+    {
+        objectPlaced = true;
+    }
+
+    public void ScaleModif(int scaleFactor)
+    {
+        placedObj.transform.localScale += Vector3.one * scaleFactor;
+    }
+
+    public void Move(Vector3 dir)
+    {
+        placedObj.transform.position += dir;
+    }
+
+    #endregion
+
+    #region GameReLated
     void ShootTarget()
     {
-        if (!objectPlaced || ammo <= 0 || timer <= 0) return;
+        if (!objectPlaced || timer <= 0) return;
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -100,22 +120,20 @@ public class MainControl : MonoBehaviour
             Ray rayCam = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(rayCam, out hit, Mathf.Infinity))
             {
-                if (hit.collider.CompareTag("Target"))
+                if (hit.collider.CompareTag("Target") && ammo > 0)
                 {
                     score++;
+                    Destroy(hit.collider.gameObject);
+                }
+                else if (hit.collider.CompareTag("Ammo"))
+                {
+                    ammo++;
                     Destroy(hit.collider.gameObject);
                 }
             }
         }
     }
 
-    void UpdateText()
-    {
-        textChrono.text = (Mathf.Round(timer*10)/10).ToString();
-
-        textScore.text = "Score: " +score;
-        textAmmo.text = "Ammo: " + ammo;
-    }
 
     //increment the Ammo based on the detected object
     private void OnTriggerEnter(Collider other)
@@ -127,7 +145,25 @@ public class MainControl : MonoBehaviour
             ammo++;
             Destroy(other.gameObject);
         }
+        else if (other.CompareTag("Target"))
+        {
+            life--;
+            Destroy(other.gameObject);
+        }
     }
+
+    void CheckEnd()
+    {
+        if (!objectPlaced) return;
+
+        if ((timer <= 0 || life <= 0) && !endDoOnce)
+        {
+            endDoOnce = true;
+            endEvent?.Invoke();
+        }
+        else if (timer > maxTimer) timer -= Time.deltaTime;
+    }
+
 
     public void GameReset()
     {
@@ -136,4 +172,5 @@ public class MainControl : MonoBehaviour
         ammo = baseAmmo;
         endDoOnce = false;
     }
+    #endregion
 }
