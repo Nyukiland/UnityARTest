@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 using UnityEngine.Events;
+using System.Linq;
 
 public class MainControl : MonoBehaviour
 {
@@ -25,7 +26,7 @@ public class MainControl : MonoBehaviour
     GameObject playMenu;
 
 	[SerializeField]
-	TextMeshProUGUI textScore, textAmmo, textChrono, textLife;
+	TextMeshProUGUI textScore, textAmmo, textChrono, textLife, endScoreText;
 
     [Header("Set up related")]
 
@@ -41,6 +42,8 @@ public class MainControl : MonoBehaviour
     //------------------------------------------------------
     //private variable
 
+    bool canplay;
+
     bool objectPlaced;
     GameObject placedObj;
 
@@ -51,6 +54,11 @@ public class MainControl : MonoBehaviour
     int ammo;
     int life;
 
+    public void StartGame()
+    {
+        canplay = true;
+    }
+
     private void Start()
     {
         GameReset();
@@ -58,6 +66,8 @@ public class MainControl : MonoBehaviour
 
     private void Update()
     {
+        if (!canplay) return;
+
         CheckEnd();
         PlaceObject();
         ShootTarget();
@@ -65,6 +75,7 @@ public class MainControl : MonoBehaviour
         UpdateText();
     }
 
+    //update the visible text
     void UpdateText()
     {
         textChrono.text = (Mathf.Round(timer * 10) / 10).ToString();
@@ -72,12 +83,14 @@ public class MainControl : MonoBehaviour
         textScore.text = "Score: " + score;
         textAmmo.text = "Ammo: " + ammo;
         textLife.text = "Life: " + life;
+        endScoreText.text = "Final Score: \n" + score;
     }
 
     #region ObjectPlacement
+    //place the generator on the the ar plane
     void PlaceObject()
     {
-        if (placedObj == null) return;
+        if (placedObj != null) return;
 
         List<ARRaycastHit> hit = new();
 
@@ -90,32 +103,44 @@ public class MainControl : MonoBehaviour
         }
     }
 
+    //--------------------------------------------
+    //button called
     public void ValidatePlacement()
     {
+        if (!placedObj) return;
+
+        placedObj.GetComponent<MainObjectControl>().actif = true;
+        placedObj.GetComponent<MainObjectControl>().ResetAll();
         objectPlaced = true;
     }
 
-    public void ScaleModif(int scaleFactor)
+    public void ScaleModif(float scaleFactor)
     {
+        if (scaleFactor < 0 && placedObj.transform.localScale.x < 0.2f) return;
+
         placedObj.transform.localScale += Vector3.one * scaleFactor;
     }
 
-    public void Move(Vector3 dir)
+    public void MoveForward(float dir)
     {
-        placedObj.transform.position += dir;
+        placedObj.transform.position += new Vector3(Camera.main.transform.forward.x, 0, Camera.main.transform.forward.z) * dir;
+    }
+
+    public void MoveRight(float dir)
+    {
+        placedObj.transform.position += new Vector3(Camera.main.transform.right.x, 0, Camera.main.transform.right.z) * dir;
     }
 
     #endregion
 
     #region GameReLated
+    //Raycast to detect the object
     void ShootTarget()
     {
         if (!objectPlaced || timer <= 0) return;
 
         if (Input.GetMouseButtonDown(0))
         {
-            ammo--;
-
             RaycastHit hit;
             Ray rayCam = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(rayCam, out hit, Mathf.Infinity))
@@ -123,6 +148,7 @@ public class MainControl : MonoBehaviour
                 if (hit.collider.CompareTag("Target") && ammo > 0)
                 {
                     score++;
+                    ammo--;
                     Destroy(hit.collider.gameObject);
                 }
                 else if (hit.collider.CompareTag("Ammo"))
@@ -159,6 +185,7 @@ public class MainControl : MonoBehaviour
         if ((timer <= 0 || life <= 0) && !endDoOnce)
         {
             endDoOnce = true;
+            placedObj.GetComponent<MainObjectControl>().actif = false;
             endEvent?.Invoke();
         }
         else if (timer > maxTimer) timer -= Time.deltaTime;
@@ -170,7 +197,14 @@ public class MainControl : MonoBehaviour
         timer = maxTimer;
         score = 0;
         ammo = baseAmmo;
+        life = maxLife;
         endDoOnce = false;
+
+        if (placedObj != null)
+        {
+            placedObj.GetComponent<MainObjectControl>().actif = true;
+            placedObj.GetComponent<MainObjectControl>().ResetAll();
+        }
     }
     #endregion
 }

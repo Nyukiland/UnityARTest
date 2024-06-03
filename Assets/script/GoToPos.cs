@@ -20,6 +20,6 @@ public class GoToPos : MonoBehaviour
             posToGo = Camera.main.transform.position;
         }
 
-        transform.position = Vector3.MoveTowards(transform.position, posToGo, speed);
+        transform.position = Vector3.MoveTowards(transform.position, posToGo, speed * Time.deltaTime);
     }
 }
